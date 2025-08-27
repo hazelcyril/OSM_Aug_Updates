@@ -1,0 +1,178 @@
+---
+title: "OSM August: Progress"
+output: html_document
+date: "2025-08-22"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+library(forcats)
+library(ggplot2)
+library(plotly)
+library(readr)
+library(tidyr)
+library(wordcloud)
+
+theme_user_stats <- theme_minimal() +
+  theme(panel.grid = element_blank(),
+        axis.line = element_line(colour = 'grey20', size = 0.5),
+        legend.position = "none",
+        plot.margin = margin(5,20,5,20))
+
+colour_primary_mark <- "#e66101"
+colour_secondary_mark <- "#5e3c99"
+colour_tertiary_mark <- "#2d004b"
+colour_fill <- "#fdb863"
+```
+
+## 1. Updates to Charts
+
+Histograms, Scatter plots and word clouds were used in this iteration of 
+the study.
+
+Boxplots used originally to show the distribution of user statistics were 
+replaced by Histograms and Scatter Plots. This was done in order to make data
+accessible to audiences with non-scientific backgrounds as boxplots may be
+complicated to interpret.
+You can read more on the appropriateness of boxplots from Data Visualisation 
+expert and author, Nick Desbarats 
+[here](https://nightingaledvs.com/ive-stopped-using-box-plots-should-you/) and 
+[here](https://nightingaledvs.com/i-stopped-using-box-plots-the-aftermath/).
+
+
+```{r boxplots, echo=FALSE}
+base_path <- "D:/OSM_RA/Code/my_folder/"
+contributions_summary <- read.csv(paste0(base_path, 
+                                         "data/raw/contributions_summary.csv"))
+
+contributions_summary |> 
+  select(-starts_with("date")) |> 
+  pivot_longer(-user) |> 
+  ggplot(aes(x = value, y = 1, fill = name)) +
+  geom_boxplot() +
+  facet_wrap(~name, ncol=1, scales = "free_x")+ 
+  labs(y = "", x ="") +
+  # theme_minimal() +
+  theme(
+    axis.title.y=element_blank(),
+    axis.ticks.y = element_blank(),
+    axis.text.y = element_blank(),
+    panel.grid= element_blank(),
+    legend.position = "none"
+  )
+```
+
+## Histogram
+
+Perceptual accuracy of data visualisations using position against a common 
+scale and length has been identified as being the strongest (Cleveland & 
+McGill, 1984). It is with this understanding that histogram was used to show 
+the distribution of 
+accounts by their age.
+
+```{r histogram}
+account_distribution <- contributions_summary |>
+  ggplot(aes(x = account_age)) +
+  geom_histogram(
+    breaks = seq(0, 20, by = 5),
+    color = colour_primary_mark,
+    fill = colour_fill
+  ) +
+  geom_vline(xintercept = mean(contributions_summary$account_age),              
+             color = colour_secondary_mark,linetype = 2, lwd = 0.7) +
+  # annotation for mean-intercept cannot be labelled:
+  #   geom_GeomLabel() has yet to be implemented in plotly.
+  #annotate("label", x = mean(contributions_summary$account_age), y = 2, 
+  #         label = "Mean Age of Accounts", angle = 90) +
+  scale_x_continuous(breaks = seq(0, 20, by = 5)) +
+  labs(y = "Number of Accounts", x = "Age of Accounts (in years)") +
+  theme_user_stats
+
+ggplotly(account_distribution)
+```
+## Scatter Plot
+
+Scatter plots are also based on position against a common scale. Scatter plots
+with dots representing the effort of every OSM user considered in the study 
+might prove to be useful to identify patterns with a growing dataset.
+
+```{r scatter plot}
+comment_activity <- contributions_summary |>
+  ggplot(aes(x = account_age, y = comments)) +
+  geom_point(color=colour_primary_mark) +
+  geom_hline(yintercept = mean(contributions_summary$comments), color = colour_tertiary_mark, linetype = 2, lwd = 0.5) +
+  annotate("text", x = 7, y = mean(contributions_summary$comments) + 25, label = "Average Number of Comments", hjust = 0, size = 3)+
+  labs(y = "Comments Written", x = "Age of Accounts (in years)") +
+  theme(panel.grid = element_blank(),
+        legend.position = "none",
+         plot.margin = margin(5,10,5,10))
+
+ggplotly(comment_activity)
+
+```
+
+For the scatter plot on map activity, map changesets and map notes added by 
+the OSM users were considered on the same visualisation. It wa observed that 
+some users are no longer actively editing maps. Hence, instead of using 
+the age of OSM accounts for the visualisation, the period of the activity on 
+maps was used. This was evaluated from the time of creation of the accounts and
+the time the last map edit was made.  
+
+
+## Word Cloud
+
+Word Cloud is regarded for its efficacy in visualising text (Meirelles, 2013) 
+and as an exploratory tool (Tessem et al., 2015). Considering their widespread
+usage and prominence in visualisating tags, they were used to display long and 
+short hashtags used by OSM users with ease.
+
+```{r data retrieval, echo=FALSE}
+changesets <- read_csv(paste0(base_path, "data/raw/changesets.csv")) |> 
+  mutate(user = as.factor(user))
+
+word_corpus <- changesets |>
+  select(id, hashtags) |>
+  filter(!is.na(hashtags)) |>
+  separate_longer_delim(hashtags, ";") |>
+  count(hashtags) |>
+  mutate(hashtags = fct_reorder(hashtags, n),
+         hashtags = fct_lump_n(hashtags, 5)) |>
+  arrange(desc(n))
+
+```
+
+```{r wordcloud}
+wordcloud(words = word_corpus$hashtags, 
+                               freq = word_corpus$n, 
+                               min.freq = 1, 
+                               random.order=FALSE, 
+                               colors=brewer.pal(4, "PuOr"),
+                               scale=c(2,0.5))
+
+```
+
+R package wordcloud2 was used in the inital phase as it provides interactivity
+and displays the number of times the hashtags were used. However, due to 
+limitations in use with Quarto and RMarkdown applications, a non-interactive 
+version using wordcloud was developed.
+
+
+## 2. Updates to Heatmaps
+
+Due to the differences in timezones OSM users considered in this study are 
+located in, OSM usage by day of the week and the hour provided limited insight 
+into the daily usage patterns. 
+
+As an alternative, Month and Day of the Week (see 
+[here](https://www.openstreetmap.org/user/HazelCyril) for reference)
+, as seen on the OSM user profile page were used to visualise usage patterns.
+
+## 3. Colour-blindness Friendly Palette
+To improve accessibility of the visualisations, a colour blindness friendly 
+colour palette was adopted from 
+[Color Brewer 2.0](https://colorbrewer2.org/#type=diverging&scheme=PuOr&n=4).
+
+Neutral colours, Purple and Orange, that do not implicate gender, race or 
+other aspects were chosen for the visualisations.
+
