@@ -54,6 +54,7 @@ library(wordcloud)
 #   )
 # )
 
+# Modified - OSM_Aug_RA
 # heatmap theme for Changeset and WikiEdit distribution
 theme_heatmap <- theme_minimal() +
   theme(
@@ -101,10 +102,6 @@ changesets_tags <- read_csv(paste0(base_path, "data/raw/changesets_tags.csv"))
 wiki_contributions <- read.csv(paste0(base_path, "data/raw/wiki_contributions.csv"))
 
 contributions_summary <- read.csv(paste0(base_path, "data/raw/contributions_summary.csv"))
-
-contributions_summary$map_activity_age <- as.integer(
-      difftime(contributions_summary$date_last_map_edit, contributions_summary$date_creation, units = "days")
-    ) / 365
 
 ```
 
@@ -233,6 +230,7 @@ Hours spent contributing
 ```{r}
 #| title: "Account Age"
 
+# Modified - OSM_Aug_RA
 # contributions_summary |> 
 #   select(user, account_age, map_changesets, wiki_edits, comments, diary, map_notes, traces) |> 
 #   pivot_longer(-user) |> 
@@ -411,13 +409,14 @@ leaflet(options = leafletOptions(maxZoom = 12)) |>
   # addPolygons(data = changesets_sf) |> 
   # addCircles(data = changesets_sf_centroids)
   addHeatmap(data = filter(changesets_sf_centroids, !is.na(lon)), lng = ~lon, lat = ~lat,
-             blur = 10, radius = 20, minOpacity = 0.5 ) 
+           blur = 10, radius = 20, minOpacity = 0.5 ) 
 ```
 
 
 ```{r}
 #| title: When do they contribute?
 
+# Modified - OSM_Aug_RA
 # changesets_day_time <- changesets |> 
 #   select(created_at) |> 
 #   mutate(date = created_at,
@@ -477,7 +476,7 @@ changeset_heatmap <-
     name = "Number of Changes"
   ) +
   scale_y_discrete(limits = rev) +
-  coord_fixed() +
+  #coord_fixed() +
   theme_heatmap
 
 changeset_heatmap_interactive <- ggplotly(changeset_heatmap)
@@ -574,6 +573,7 @@ plot_ly(
 #| label: hashtags-count2
 # TODO: see how to reuse code.
 
+# Modified - OSM_Aug_RA
 # changesets |> 
 #   select(id, hashtags) |> 
 #   filter(!is.na(hashtags)) |> 
@@ -617,13 +617,13 @@ word_corpus <- changesets |>
 #   color = rep_len(c(colour_primary_mark, colour_tertiary_mark), length.out = nrow(word_corpus))
 # )
 
-wordcloud_hashtag <- wordcloud(words = word_corpus$hashtags, 
-                               freq = word_corpus$n, 
-                               min.freq = 1, 
-                               random.order=FALSE, 
-                               colors=brewer.pal(4, "PuOr"))
-
-wordcloud_hashtag
+# smaller scale helps with printing all words in the corpus.
+wordcloud(words = word_corpus$hashtags, 
+          freq = word_corpus$n, 
+          min.freq = 1, 
+          random.order=FALSE, 
+          colors=brewer.pal(4, "PuOr"),
+          scale=c(2,0.5)) 
 ```
 
 
@@ -660,8 +660,8 @@ key_counts2 <- changesets_tags  |>
 
 
 tags_treemap <- ggplot(key_counts2, aes(area = n, fill = top_key, 
-                                        subgroup = top_key,
-                                        label = parent_key)) +
+                        subgroup = top_key,
+                        label = parent_key)) +
   geom_treemap(color = "white") +
   geom_treemap_subgroup_border(color = "white") +
   geom_treemap_text(fontface = "italic", colour = "white", alpha = 0.5,
@@ -828,7 +828,7 @@ wiki_stats[1]
 df <- as.data.frame(wiki_stats[4])
 round(sum(df$additions, na.rm = TRUE), digits = 2)
 
-
+  
 ```
 
 ```{r}
@@ -863,6 +863,7 @@ wiki_contributions |>
 ```{r}
 #| title: When do they contribute?
 
+# Modified - OSM_Aug_RA
 # wiki_edits_day_time <- wiki_contributions |> 
 #   select(timestamp) |> 
 #   mutate(date = ymd_hms(timestamp),
@@ -926,7 +927,7 @@ wiki_heatmap <-
     name = "Number of Edits"
   ) +
   scale_y_discrete(limits = rev) +
-  coord_fixed() +
+  #coord_fixed() +
   theme_heatmap
 
 wiki_heatmap_interactive <- ggplotly(wiki_heatmap)
@@ -981,7 +982,7 @@ plot <- wiki_contributions_stats[[5]] |>
   theme(panel.grid= element_blank(),
         axis.text.x=element_blank(),
         axis.ticks.x = element_blank())
-
+ 
 
 ggplotly(plot)
 
